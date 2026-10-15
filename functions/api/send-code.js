@@ -1,20 +1,20 @@
-// Cloudflare Worker: 阿里云邮件推送完整签名与发送
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
     const { email } = await request.json();
     if (!email) return new Response(JSON.stringify({ success: false, msg: '请输入邮箱' }), { status: 400 });
 
+    // 生成6位随机验证码
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expireAt = Date.now() + 5 * 60 * 1000;
+    const expireAt = Date.now() + 5 * 60 * 1000; // 5分钟有效
 
-    // 1. 存入 D1 数据库（先建表：CREATE TABLE email_codes (email TEXT PRIMARY KEY, code TEXT, expire_at INTEGER);）
+    // 存入 D1 数据库（需要建表：CREATE TABLE email_codes (email TEXT PRIMARY KEY, code TEXT, expire_at INTEGER);）
     await env.DB.prepare('INSERT OR REPLACE INTO email_codes (email, code, expire_at) VALUES (?, ?, ?)').bind(email, code, expireAt).run();
 
-    // 2. 阿里云 API 签名逻辑
+    // 阿里云 API 签名逻辑
     const params = {
       Action: 'SingleSendMail',
-      AccountName: env.ALI_DM_ACCOUNT,
+      AccountName: env.ALI_DM_ACCOUNT, // 发信地址
       ReplyToAddress: 'false',
       AddressType: '1',
       ToAddress: email,
@@ -36,7 +36,7 @@ export async function onRequestPost(context) {
     // 构造 StringToSign
     const stringToSign = `POST&${encodeURIComponent('/')}&${encodeURIComponent(canonicalizedQuery)}`;
     
-    // HMAC-SHA1 计算
+    // HMAC-SHA1 计算签名
     const key = env.ALI_ACCESS_KEY_SECRET + '&';
     const encoder = new TextEncoder();
     const keyData = encoder.encode(key);
@@ -48,16 +48,16 @@ export async function onRequestPost(context) {
 
     params.Signature = signature;
 
-    // 3. 发送请求
+    // 发送请求给阿里云
     const res = await fetch('https://dm.aliyuncs.com/', { method: 'POST', body: new URLSearchParams(params) });
     const data = await res.json();
 
     if (data.Code === 'OK') {
-      return new Response(JSON.stringify({ success: true, msg: '验证码已发送' }), { status: 200 });
+      return new Response(JSON.stringify({ success: true, msg: '验证码已发送，请查收邮箱' }), { status: 200 });
     } else {
-      return new Response(JSON.stringify({ success: false, msg: '发送失败: ' + data.Message }), { status: 500 });
+      return new Response(JSON.stringify({ success: false, msg: '发送失败: ' + (data.Message || '检查阿里云配置') }), { status: 500 });
     }
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, msg: '发送出错' }), { status: 500 });
+    return new Response(JSON.stringify({ success: false, msg: '发送出错: ' + err.message }), { status: 500 });
   }
 }
