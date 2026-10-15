@@ -11,8 +11,11 @@
     .logo { width: 64px; height: 64px; border-radius: 14px; margin-bottom: 16px; }
     h1 { font-size: 20px; color: #111; margin: 0 0 8px; }
     p.subtitle { font-size: 13px; color: #666; margin: 0 0 24px; }
-    input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; box-sizing: border-box; margin-bottom: 16px; outline: none; transition: border-color 0.2s; }
+    .input-group { display: flex; gap: 8px; margin-bottom: 16px; }
+    input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s; }
     input:focus { border-color: #4A90D9; }
+    .code-btn { width: 120px; padding: 0 10px; background: #f0f0f0; border: none; border-radius: 10px; font-size: 13px; color: #333; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+    .code-btn:disabled { color: #999; cursor: not-allowed; }
     .btn { width: 100%; padding: 14px; background: #4A90D9; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 16px; transition: background 0.2s; }
     .btn:hover { background: #357ABD; }
     .btn:disabled { background: #a0c4e8; cursor: not-allowed; }
@@ -30,33 +33,74 @@
 
     <form id="registerForm">
         <input type="text" id="username" placeholder="用户名" required autocomplete="username">
-        <input type="email" id="email" placeholder="真实邮箱" required autocomplete="email">
+        <div class="input-group">
+            <input type="email" id="email" placeholder="真实邮箱" required autocomplete="email">
+            <button type="button" class="code-btn" id="sendCodeBtn">获取验证码</button>
+        </div>
+        <input type="text" id="code" placeholder="邮箱验证码" required>
         <input type="password" id="password" placeholder="密码（至少8位）" required minlength="8" autocomplete="new-password">
         
-        <!-- Cloudflare Turnstile 组件 -->
         <div class="cf-turnstile" data-sitekey="0x4AAAAAAFUX4BAAh7lzp1mNJZZf_qG5LJA"></div>
-
         <button type="submit" class="btn" id="submitBtn">注册账号</button>
         <div id="msg"></div>
     </form>
 </div>
 
 <script>
+const sendBtn = document.getElementById('sendCodeBtn');
+const msgDiv = document.getElementById('msg');
+
+// 发送验证码
+sendBtn.addEventListener('click', async () => {
+    const email = document.getElementById('email').value;
+    if (!email) { alert('请先填写邮箱'); return; }
+    
+    sendBtn.disabled = true;
+    sendBtn.innerText = '发送中...';
+    
+    try {
+        const res = await fetch('/api/send-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        alert(data.msg);
+        if (data.success) {
+            let countdown = 60;
+            sendBtn.innerText = countdown + '秒后重试';
+            const timer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    sendBtn.disabled = false;
+                    sendBtn.innerText = '获取验证码';
+                } else {
+                    sendBtn.innerText = countdown + '秒后重试';
+                }
+            }, 1000);
+        } else {
+            sendBtn.disabled = false;
+            sendBtn.innerText = '获取验证码';
+        }
+    } catch (err) {
+        sendBtn.disabled = false;
+        sendBtn.innerText = '获取验证码';
+        alert('网络错误，请重试');
+    }
+});
+
+// 提交注册
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    const btn = document.getElementById('submitBtn');
-    const msgDiv = document.getElementById('msg');
-    
-    // 获取 Turnstile 生成的 Token
     const turnstileToken = document.querySelector('[name="cf-turnstile-response"]').value;
-    
-    if (!turnstileToken) {
-        msgDiv.className = 'msg-error';
-        msgDiv.innerText = '请先完成人机验证';
-        return;
+    if (!turnstileToken) { 
+        msgDiv.className = 'msg-error'; 
+        msgDiv.innerText = '请先完成人机验证'; 
+        return; 
     }
 
+    const btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.innerText = '注册中...';
     msgDiv.innerText = '';
@@ -69,27 +113,23 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
                 username: document.getElementById('username').value,
                 email: document.getElementById('email').value,
                 password: document.getElementById('password').value,
+                code: document.getElementById('code').value,
                 turnstileToken: turnstileToken
             })
         });
-
         const data = await res.json();
-
         if (data.success) {
             msgDiv.className = 'msg-success';
             msgDiv.innerText = '注册成功！即将跳转...';
-            // 注册成功后可以跳转到控制台
-            // setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
+            setTimeout(() => { window.location.href = '/'; }, 1500);
         } else {
             msgDiv.className = 'msg-error';
             msgDiv.innerText = data.msg || '注册失败';
-            // 验证失败后重置 Turnstile
             if (window.turnstile) window.turnstile.reset();
         }
     } catch (err) {
         msgDiv.className = 'msg-error';
-        msgDiv.innerText = '网络错误，请稍后重试';
-        if (window.turnstile) window.turnstile.reset();
+        msgDiv.innerText = '网络错误，请重试';
     } finally {
         btn.disabled = false;
         btn.innerText = '注册账号';
