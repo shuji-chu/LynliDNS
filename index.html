@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LynliDNS - 注册</title>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<style>
+body { font-family: -apple-system, sans-serif; background: #f4f7f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+.card { background: #fff; padding: 40px 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 360px; text-align: center; box-sizing: border-box; }
+.logo { width: 64px; height: 64px; border-radius: 14px; margin-bottom: 16px; }
+h1 { font-size: 20px; color: #111; margin: 0 0 8px; }
+p { font-size: 13px; color: #666; margin: 0 0 24px; }
+input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; box-sizing: border-box; margin-bottom: 16px; outline: none; }
+input:focus { border-color: #4A90D9; }
+.btn { width: 100%; padding: 14px; background: #4A90D9; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 16px; }
+.btn:hover { background: #357ABD; }
+.cf-turnstile { display: flex; justify-content: center; }
+</style>
+</head>
+<body>
+<div class="card">
+    <img src="logo.png" alt="LynliDNS" class="logo">
+    <h1>LynliDNS</h1>
+    <p>注册账号，免费领取你的二级域名</p>
+    <form>
+        <input type="text" placeholder="用户名" required>
+        <input type="email" placeholder="邮箱" required>
+        <input type="password" placeholder="密码" required>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAAFUX4BAAh7lzp1mNJZZf_qG5LJA"></div>
+        <button type="submit" class="btn">注册账号</button>
+    </form>
+</div>
+</body>
+</html>
